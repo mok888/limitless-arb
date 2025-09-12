@@ -1,0 +1,62 @@
+{
+  "name": "limitless-arbitrage-mvp",
+  "version": "1.0.0",
+  "description": "Automated market making and arbitrage system for Limitless.Exchange LP rewards",
+  "main": "src/mvp-main.js",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/main.js",
+    "start:global": "node scripts/start-global-coordination.js",
+    "start:old": "node src/global-coordination-main.js",
+    "compare": "node scripts/compare-architectures.js",
+    "multi-strategy": "node src/global-coordination-main.js",
+    "demo:global": "node examples/demo-global-coordination.js",
+    "test:global": "node tests/test-global-coordination.js",
+    "demo:multi": "node examples/demo-multi-strategy.js",
+    "demo:account-fix": "node examples/demo-account-strategy-fix.js",
+    "test:multi": "node tests/test-multi-strategy.js",
+    "test:account-strategy": "node tests/test-account-strategy-execution.js",
+    "test:position": "node tests/test-position-manager.js",
+    "test:integration": "node tests/test-position-integration.js",
+    "demo:position": "node examples/demo-position-management.js",
+    "demo:market-discovery": "node examples/demo-market-discovery.js",
+    "demo:account": "node examples/account-management-demo.js",
+    "analyze": "node tools/analyze-markets.js",
+    "account": "node tools/account-manager-cli.js",
+    "check:accounts": "node tools/check-account-strategies.js",
+    "test:proxy": "node tests/test-proxy-manager.js",
+    "test:axios-proxy": "node tests/test-axios-proxy.js",
+    "test:market-proxy": "node tests/test-market-proxy.js",
+    "test:https-proxy": "node tests/test-https-proxy-agent.js",
+    "demo:proxy": "node examples/demo-proxy-usage.js",
+    "demo:https-proxy": "node examples/demo-https-proxy-usage.js",
+    "demo:orders": "node examples/demo-order-results.js",
+    "validate:proxy": "node tools/validate-proxy-config.js",
+    "config:generate": "node tools/config-generator.js",
+    "config:validate": "node tools/config-validator.js",
+    "config:validate:detailed": "node tools/config-validator.js --detailed",
+    "demo:config": "node examples/demo-strategy-config.js",
+    "test:config": "node tests/test-strategy-config.js",
+    "test:orders": "node tests/test-order-results-printing.js"
+  },
+  "keywords": [
+    "arbitrage",
+    "market-making",
+    "limitless-exchange",
+    "defi",
+    "trading-bot"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "commander": "^14.0.0",
+    "decimal.js": "^10.6.0",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.15.0",
+    "https-proxy-agent": "^7.0.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
