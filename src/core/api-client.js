@@ -5,16 +5,15 @@ import Decimal from 'decimal.js';
 import { config } from './config.js';
 import proxyManager from '../managers/proxy-manager.js';
 
-// EIP-712 域数据
-const domain = {
-    name: 'Limitless CTF Exchange',
-    version: '1',
-    chainId: 8453,
-    // verifyingContract: '0xa4409d988ca2218d956beefd3874100f444f0dc3'
-    verifyingContract: '0x5a38afc17f7e97ad8d6c547ddb837e40b4aedfc6'
-};
+// // EIP-712 域数据
+// const domain = {
+//     name: 'Limitless CTF Exchange',
+//     version: '1',
+//     chainId: 8453,
+//     // verifyingContract: '0xa4409d988ca2218d956beefd3874100f444f0dc3'
+//     verifyingContract: '0x5a38afc17f7e97ad8d6c547ddb837e40b4aedfc6'
+// };
 
-// 0x5a38afc17f7e97ad8d6c547ddb837e40b4aedfc6
 
 // EIP-712 类型定义
 const types = {
@@ -35,7 +34,7 @@ const types = {
 };
 
 class LimitlessApiClient {
-    constructor(accountConfig = null) {
+    constructor(accountConfig = null, verifyingContract = '0x5a38afc17f7e97ad8d6c547ddb837e40b4aedfc6') {
         // 代理管理
         this.proxyManager = proxyManager;
 
@@ -50,6 +49,14 @@ class LimitlessApiClient {
         this.userId = null;
         this.isAuthenticated = false;
         this.sessionCookie = null; // 手动管理session cookie
+        this.verifyingContract = verifyingContract;
+
+        this.domain = {
+            name: 'Limitless CTF Exchange',
+            version: '1',
+            chainId: 8453,
+            verifyingContract,
+        };
     }
 
     async request(options) {
@@ -111,7 +118,7 @@ class LimitlessApiClient {
                 }
             }
             return { 
-                success: response.status == 200,
+                success: response.status == 200 || response.status == 201,
                 data: response.data,
             }
         } catch (error) {
@@ -302,6 +309,21 @@ Nonce: ${nonce}`;
         return prices
     }
 
+    async getTradedVolume(useProxy = true) {
+        if (!this.wallet) {
+            await this.initializeWallet()
+        }
+
+        const resp = await this.request({
+            method: 'get',
+            url: `/portfolio/${this.walletAddress}/traded-volume`,
+            needAuth: false,
+            useProxy,
+        })
+
+        return resp
+    }
+
     /**
      * 获取市场列表 - 使用代理并行请求（公共接口，无需认证）
      */
@@ -320,9 +342,12 @@ Nonce: ${nonce}`;
             // 转换为旧格式的映射，用于兼容现有代码
             const categoryMaps = {};
             for (const category of categories) {
-                if (['Hourly', 'Daily', 'Daily Strikes', 'Weekly Strikes', 'Crypto'].includes(category.name)) {
+                // if (['Weekly Strikes'].includes(category.name)) {
                     categoryMaps[category.id] = 0;
-                }
+                // }
+                // if (['Hourly', 'Daily', 'Daily Strikes', 'Weekly Strikes', 'Crypto'].includes(category.name)) {
+                //     categoryMaps[category.id] = 0;
+                // }
             }
 
             let allMarkets = [];
@@ -379,6 +404,7 @@ Nonce: ${nonce}`;
                             expired: item.expired,
                             expirationTimestamp: item.expirationTimestamp,
                             endDate: new Date(item.expirationTimestamp).toISOString(),
+                            metadata: item.metadata,
                         };
 
                         // 情况1: 直接有tokens字段的市场（单一市场结构）
@@ -595,7 +621,7 @@ Nonce: ${nonce}`;
             signatureType: order.signatureType
         };
 
-        const signature = await this.wallet.signTypedData(domain, types, orderForSigning);
+        const signature = await this.wallet.signTypedData(this.domain, types, orderForSigning);
 
         return signature;
     }
@@ -611,7 +637,7 @@ Nonce: ${nonce}`;
      * 创建市价单订单数据
      * @param {Object} params - 订单参数
      * @param {string} params.tokenId - 代币ID
-     * @param {number} params.usdcAmount - USDC金额（微单位，1 USDC = 1000000）
+     * @param {number} params.makerAmount - USDC金额（微单位，1 USDC = 1000000）
      * @param {number} params.side - 买卖方向（0=买，1=卖）
      */
     async createMarketOrder(params) {
@@ -619,7 +645,7 @@ Nonce: ${nonce}`;
             await this.initializeWallet();
         }
 
-        const { tokenId, usdcAmount, side } = params;
+        const { tokenId, makerAmount, side } = params;
 
         return {
             salt: this.generateSalt(),
@@ -627,7 +653,7 @@ Nonce: ${nonce}`;
             signer: this.walletAddress,
             taker: '0x0000000000000000000000000000000000000000',
             tokenId: tokenId,
-            makerAmount: usdcAmount.toString(), // 签名时用字符串
+            makerAmount: makerAmount.toString(), // 签名时用字符串
             takerAmount: '1',
             expiration: '0',
             nonce: 0,
@@ -650,13 +676,17 @@ Nonce: ${nonce}`;
             await this.initializeWallet();
         }
 
-        const { tokenId, price, quantity, side } = params;
+        const { tokenId, price, quantity, side, makerAmount, takerAmount } = params;
 
         // 计算 makerAmount: 美分单价 * 购买数量，然后换算成 USDC
-        const makerAmount = Math.floor(price * 100 * quantity * 10000); // 转换为 USDC 微单位
+        if (!makerAmount) {
+            makerAmount = Math.floor(price * 100 * quantity * 10000); // 转换为 USDC 微单位
+        }
 
         // 计算 takerAmount: 100美分 * 数量，然后换算成 USDC
-        const takerAmount = Math.floor(100 * quantity * 10000); // 转换为 USDC 微单位
+        if (!takerAmount) {
+            takerAmount = Math.floor(100 * quantity * 10000); // 转换为 USDC 微单位
+        }
 
         const order = {
             salt: this.generateSalt(),
@@ -793,12 +823,12 @@ Nonce: ${nonce}`;
 
             return response;
         } catch (error) {
-            throw new Error(`限价单失败: ${error.message}`);
+            throw error;
         }
     }
 
     async approve(spender, amount) {
-        if (!this.walletAddress) {
+        if (!this.wallet) {
             await this.initializeWallet();
         }
 
@@ -813,6 +843,10 @@ Nonce: ${nonce}`;
     }
 
     async setApproval(operator) {
+        if (!this.wallet) {
+            await this.initializeWallet()
+        }
+
         // ERC721/1155 ABI片段，只需setApprovalForAll方法
         const abi = [
             "function setApprovalForAll(address operator, bool approved) external"
@@ -1212,6 +1246,24 @@ Nonce: ${nonce}`;
             console.error('❌ Merge 操作失败:', error.message);
             throw new Error(`Merge 操作失败: ${error.message}`);
         }
+    }
+
+    async getUsdcBalance() {
+        if (!this.wallet) {
+            await this.initializeWallet();
+        }
+
+        const usdcAddress = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+        const erc20Abi = [
+            "function balanceOf(address owner) view returns (uint256)",
+            "function decimals() view returns (uint8)"
+        ];
+
+        const contract = new ethers.Contract(usdcAddress, erc20Abi, this.wallet.provider);
+        const balance = await contract.balanceOf(this.walletAddress);
+
+        return balance;
+
     }
 }
 
