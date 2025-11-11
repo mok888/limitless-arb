@@ -2,7 +2,7 @@
   "name": "limitless-arbitrage-mvp",
   "version": "1.0.0",
   "description": "Automated market making and arbitrage system for Limitless.Exchange LP rewards",
-  "main": "src/mvp-main.js",
+  "main": "src/main.js",
   "type": "module",
   "scripts": {
     "start": "node scripts/main.js",
