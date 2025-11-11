@@ -5,7 +5,7 @@
  * 测试账户状态的保存和恢复功能
  */
 
-import StateManager from '../src/core/state-manager.js';
+import StateManager from '../src/manager/state-manager.js';
 import { ethers } from 'ethers';
 
 class StatePersistenceTest {
